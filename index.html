@@ -1,124 +1,96 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JoSAA College Predictor 2024</title>
-  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135755.png" type="image/png">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 0; margin: 0; background: #f9f9f9; }
-    header {
-      background: #4CAF50;
-      color: white;
-      padding: 15px 20px;
-      display: flex;
-      align-items: center;
-      gap: 15px;
-    }
-    header img {
-      height: 50px;
-      border-radius: 50%;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 1.8rem;
-    }
-    header p {
-      margin: 0;
-      font-size: 1rem;
-      font-weight: 300;
-    }
-    form {
-      max-width: 600px;
-      margin: 30px auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    input, select, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-    }
-    #results {
-      margin-top: 30px;
-      padding: 0 20px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    th, td {
-      padding: 8px;
-      border: 1px solid #ccc;
-      text-align: left;
-    }
-    th {
-      background: #eee;
-    }
-    #downloadBtn, #downloadExcelBtn {
-      display: none;
-      margin: 20px auto;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-      padding: 10px;
-      width: 200px;
-      font-weight: bold;
-    }
-    #searchInput {
-      width: 100%;
-      padding: 10px;
-      margin: 20px auto;
-      display: none;
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135755.png" alt="Logo" />
-    <div>
-      <h1>JoSAA College Predictor 2024</h1>
-      <p>Get your eligible NITs, IIITs & GFTIs based on your JEE Main Rank</p>
-    </div>
-  </header>
-  <form id="predictor-form">
-    <input type="text" id="username" placeholder="Enter your Name" required />
-    <input type="number" id="rank" placeholder="Enter your JEE Rank" required />
-    <select id="category">
-  <option value="">Loading Categories...</option>
-</select>
+document.getElementById('predictor-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  document.getElementById('loader').style.display = 'block';  // Show loader
+  document.getElementById('results').innerHTML = '';          // Clear previous results
+  document.getElementById('downloadBtn').style.display = 'none';
+  document.getElementById('searchInput').style.display = 'none';
 
-<select id="gender">
-  <option value="">Select Gender</option>
-  <option value="Gender-Neutral">Gender-Neutral</option>
-  <option value="Female-Only (including Supernumerary)">Female Only</option>
-</select>
+  const name = document.getElementById('username').value.trim();
+  const rank = parseInt(document.getElementById('rank').value);
+  const category = document.getElementById('category').value;
+  const gender = document.getElementById('gender').value;
+  const homeState = document.getElementById('homeState').value.trim().toLowerCase();
+  const round = document.getElementById('round').value;
 
-<select id="homeState">
-  <option value="">Loading Home States...</option>
-</select>
+  if (!round) {
+    alert('Please select a round');
+    document.getElementById('loader').style.display = 'none';
+    return;
+  }
 
-      <option value="">Select Round</option>
-      <option value="1">Round 1</option>
-      <option value="2">Round 2</option>
-      <option value="3">Round 3</option>
-      <option value="4">Round 4</option>
-      <option value="5">Round 5</option>
-    </select>
-    <button type="submit">Predict Colleges</button>
-  </form>
+  userName = name;
+  userRank = rank;
+  userCategory = category;
+  userHomeState = document.getElementById('homeState').value.trim();
+  userRound = round;
 
-  <div id="results"></div>
-  <input type="text" id="searchInput" placeholder="Search in results..." />
-  <button id="downloadBtn">Download Results as PDF</button>
-  <button id="downloadExcelBtn">Download Results as Excel</button>
+  jsonData = await fetchJsonData(round);
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  <!-- Remaining JavaScript unchanged -->
-</body>
-</html>
+  const filtered = jsonData.filter(row => {
+    const closingRank = parseInt(row['Closing Rank']);
+    const quota = row['Quota'];
+    const seatType = row['Seat Type'];
+    const genderCat = row['Gender'];
+    const instState = row['Institute State'] ? row['Institute State'].toLowerCase() : '';
+
+    const validRank = !isNaN(closingRank) && rank <= closingRank;
+    const validCategory = seatType === category;
+    const validGender = genderCat === gender;
+
+    const isHomeState = homeState === instState && quota === 'HS';
+    const isOtherState = homeState !== instState && quota === 'OS';
+    const isAllIndia = quota === 'AI';
+
+    return validRank && validCategory && validGender && (isHomeState || isOtherState || isAllIndia);
+  });
+
+  const resultDiv = document.getElementById('results');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const searchInput = document.getElementById('searchInput');
+
+  if (filtered.length === 0) {
+    resultDiv.innerHTML = '<p>No colleges found for the given input.</p>';
+    downloadBtn.style.display = 'none';
+    searchInput.style.display = 'none';
+    document.getElementById('loader').style.display = 'none'; // Hide loader
+    return;
+  }
+
+  let html = `<h2>Predicted Colleges for ${name}</h2>
+    <p><strong>Rank:</strong> ${userRank} | <strong>Category:</strong> ${userCategory} | <strong>Home State:</strong> ${userHomeState} | <strong>Round:</strong> ${round}</p>
+    <table id="resultTable"><thead><tr>
+    <th>Institute Name</th>
+    <th>Academic Program Name</th>
+    <th>Total B.Tech Fees (4 Years)</th>
+    <th>Avg. Yearly Fees</th>
+    <th>Average Package</th>
+    <th>Highest Package</th>
+    <th>Institute State</th>
+    <th>Quota</th>
+    <th>Seat Type</th>
+    <th>Gender</th>
+    <th>Closing Rank</th>
+    </tr></thead><tbody>`;
+
+  filtered.forEach(row => {
+    html += `<tr>
+      <td>${row['Institute Name']}</td>
+      <td>${row['Academic Program Name']}</td>
+      <td>${row['Total B.Tech Fees (4 Years)'] || '-'}</td>
+      <td>${row['Avg. Yearly Fees'] || '-'}</td>
+      <td>${row['Average Package'] || '-'}</td>
+      <td>${row['Highest Package'] || '-'}</td>
+      <td>${row['Institute State'] || '-'}</td>
+      <td>${row['Quota'] || '-'}</td>
+      <td>${row['Seat Type'] || '-'}</td>
+      <td>${row['Gender'] || '-'}</td>
+      <td>${row['Closing Rank'] || '-'}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  resultDiv.innerHTML = html;
+  downloadBtn.style.display = 'block';
+  searchInput.style.display = 'block';
+  document.getElementById('loader').style.display = 'none'; // Hide loader
+});
