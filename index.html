@@ -2,40 +2,100 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JoSAA College Predictor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JoSAA College Predictor 2025</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
-    h1 { text-align: center; }
-    form { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    input, select, button { width: 100%; padding: 10px; margin-top: 10px; }
-    #results { margin-top: 30px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
-    th { background: #eee; }
-    #downloadBtn { display: none; margin-top: 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
-    #searchInput { width: 100%; padding: 10px; margin-bottom: 10px; display: none; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+      background: linear-gradient(to bottom right, #f0f4f8, #ffffff);
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 2.5em;
+      color: #004080;
+      margin-bottom: 10px;
+    }
+    h2 {
+      font-weight: 600;
+    }
+    p {
+      font-size: 1.2em;
+      color: #666;
+    }
+    form {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+    }
+    #results {
+      margin-top: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background: #eee;
+    }
+    #downloadBtn {
+      display: none;
+      margin-top: 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #searchInput {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <h1>JoSAA 2024 College Predictor</h1>
+
+  <header>
+    <h1>JoSAA Counselling 2025</h1>
+    <p>College Predictor Tool using JEE Rank, Category, and Preferences</p>
+    <hr style="width: 60%; margin: 20px auto; border: 1px solid #ccc;">
+  </header>
+
   <form id="predictor-form">
     <input type="text" id="username" placeholder="Enter your Name" required />
     <input type="number" id="rank" placeholder="Enter your JEE Rank" required />
+
     <select id="category">
-      <option value="">Select Category</option>
-      <option value="GEN">GEN</option>
-      <option value="OBC">OBC</option>
-      <option value="SC">SC</option>
-      <option value="ST">ST</option>
+      <option value="">Loading Categories...</option>
     </select>
+
     <select id="gender">
-      <option value="">Select Gender</option>
-      <option value="Gender-Neutral">Gender-Neutral</option>
-      <option value="Female-Only (including Supernumerary)">Female Only</option>
+      <option value="">Loading Gender Options...</option>
     </select>
-    <input type="text" id="homeState" placeholder="Enter your Home State (e.g. Maharashtra)" required />
+
+    <select id="homeState">
+      <option value="">Loading States...</option>
+    </select>
+
     <select id="round">
       <option value="">Select Round</option>
       <option value="1">Round 1</option>
@@ -44,6 +104,7 @@
       <option value="4">Round 4</option>
       <option value="5">Round 5</option>
     </select>
+
     <button type="submit">Predict Colleges</button>
   </form>
 
@@ -51,10 +112,8 @@
   <input type="text" id="searchInput" placeholder="Search in results..." />
   <button id="downloadBtn">Download Results as PDF</button>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script>
-    let jsonData = {};
+    let jsonData = [];
     let userName = '', userRank = '', userCategory = '', userHomeState = '', userRound = '';
 
     async function fetchJsonData(round) {
@@ -63,27 +122,58 @@
       return await res.json();
     }
 
+    async function populateDynamicInputs(round) {
+      const data = await fetchJsonData(round);
+
+      // Seat Type (Category)
+      const categories = [...new Set(data.map(row => row['Seat Type']).filter(Boolean))];
+      const categorySelect = document.getElementById('category');
+      categorySelect.innerHTML = '<option value="">Select Category</option>';
+      categories.forEach(cat => {
+        categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+      });
+
+      // Gender
+      const genders = [...new Set(data.map(row => row['Gender']).filter(Boolean))];
+      const genderSelect = document.getElementById('gender');
+      genderSelect.innerHTML = '<option value="">Select Gender</option>';
+      genders.forEach(g => {
+        genderSelect.innerHTML += `<option value="${g}">${g}</option>`;
+      });
+
+      // Home State (from Institute State)
+      const states = [...new Set(data.map(row => row['Institute State']).filter(Boolean))];
+      const homeStateSelect = document.getElementById('homeState');
+      homeStateSelect.innerHTML = '<option value="">Select Home State</option>';
+      states.forEach(state => {
+        homeStateSelect.innerHTML += `<option value="${state.toLowerCase()}">${state}</option>`;
+      });
+
+      return data;
+    }
+
     document.getElementById('predictor-form').addEventListener('submit', async function(e) {
       e.preventDefault();
-      const name = document.getElementById('username').value.trim();
-      const rank = parseInt(document.getElementById('rank').value);
-      const category = document.getElementById('category').value;
-      const gender = document.getElementById('gender').value;
-      const homeState = document.getElementById('homeState').value.trim().toLowerCase();
-      const round = document.getElementById('round').value;
 
+      const round = document.getElementById('round').value;
       if (!round) {
         alert('Please select a round');
         return;
       }
 
+      const name = document.getElementById('username').value.trim();
+      const rank = parseInt(document.getElementById('rank').value);
+      const category = document.getElementById('category').value;
+      const gender = document.getElementById('gender').value;
+      const homeState = document.getElementById('homeState').value;
+
       userName = name;
       userRank = rank;
       userCategory = category;
-      userHomeState = document.getElementById('homeState').value.trim();
+      userHomeState = homeState;
       userRound = round;
 
-      jsonData = await fetchJsonData(round);
+      jsonData = await populateDynamicInputs(round);
 
       const filtered = jsonData.filter(row => {
         const closingRank = parseInt(row['Closing Rank']);
@@ -145,6 +235,7 @@
           <td>${row['Closing Rank'] || '-'}</td>
         </tr>`;
       });
+
       html += '</tbody></table>';
       resultDiv.innerHTML = html;
       downloadBtn.style.display = 'block';
