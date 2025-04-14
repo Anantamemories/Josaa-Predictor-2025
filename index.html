@@ -24,18 +24,16 @@
     <input type="text" id="username" placeholder="Enter your Name" required />
     <input type="number" id="rank" placeholder="Enter your JEE Rank" required />
     <select id="category">
-      <option value="">Select Category</option>
-      <option value="GEN">GEN</option>
-      <option value="OBC">OBC</option>
-      <option value="SC">SC</option>
-      <option value="ST">ST</option>
+      <option value="">Loading Categories...</option>
     </select>
     <select id="gender">
       <option value="">Select Gender</option>
       <option value="Gender-Neutral">Gender-Neutral</option>
       <option value="Female-Only (including Supernumerary)">Female Only</option>
     </select>
-    <input type="text" id="homeState" placeholder="Enter your Home State (e.g. Maharashtra)" required />
+    <select id="homeState">
+      <option value="">Loading Home States...</option>
+    </select>
     <select id="round">
       <option value="">Select Round</option>
       <option value="1">Round 1</option>
@@ -51,8 +49,6 @@
   <input type="text" id="searchInput" placeholder="Search in results..." />
   <button id="downloadBtn">Download Results as PDF</button>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script>
     let jsonData = {};
     let userName = '', userRank = '', userCategory = '', userHomeState = '', userRound = '';
@@ -62,6 +58,32 @@
       const res = await fetch(fileName);
       return await res.json();
     }
+
+    async function populateDropdowns() {
+      const tempData = await fetchJsonData(5);
+      const seatTypes = [...new Set(tempData.map(row => row['Seat Type']).filter(Boolean))].sort();
+      const states = [...new Set(tempData.map(row => row['Institute State']).filter(Boolean))].sort();
+
+      const categorySelect = document.getElementById('category');
+      const stateSelect = document.getElementById('homeState');
+      categorySelect.innerHTML = '<option value="">Select Category</option>';
+      seatTypes.forEach(type => {
+        const opt = document.createElement('option');
+        opt.value = type;
+        opt.textContent = type;
+        categorySelect.appendChild(opt);
+      });
+
+      stateSelect.innerHTML = '<option value="">Select Home State</option>';
+      states.forEach(state => {
+        const opt = document.createElement('option');
+        opt.value = state;
+        opt.textContent = state;
+        stateSelect.appendChild(opt);
+      });
+    }
+
+    populateDropdowns();
 
     document.getElementById('predictor-form').addEventListener('submit', async function(e) {
       e.preventDefault();
@@ -121,6 +143,7 @@
         <th>Academic Program Name</th>
         <th>Total B.Tech Fees (4 Years)</th>
         <th>Avg. Yearly Fees</th>
+        <th>Hostel Fees</th>
         <th>Average Package</th>
         <th>Highest Package</th>
         <th>Institute State</th>
@@ -136,6 +159,7 @@
           <td>${row['Academic Program Name']}</td>
           <td>${row['Total B.Tech Fees (4 Years)'] || '-'}</td>
           <td>${row['Avg. Yearly Fees'] || '-'}</td>
+          <td>${row['Hostel Fees'] || '-'}</td>
           <td>${row['Average Package'] || '-'}</td>
           <td>${row['Highest Package'] || '-'}</td>
           <td>${row['Institute State'] || '-'}</td>
@@ -169,7 +193,8 @@
         startY: 25,
         styles: { fontSize: 7, cellWidth: 'wrap' },
         margin: { top: 10, right: 10, bottom: 10, left: 10 },
-        tableWidth: 'auto'
+        tableWidth: 'auto',
+        theme: 'grid'
       });
 
       doc.save(`Predicted_Colleges_${userName.replace(/\s+/g, '_')}.pdf`);
@@ -184,5 +209,6 @@
       });
     });
   </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </body>
 </html>
