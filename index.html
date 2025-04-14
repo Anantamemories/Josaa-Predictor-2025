@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JoSAA College Predictor</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
+    h1 { text-align: center; }
+    form { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    input, select, button { width: 100%; padding: 10px; margin-top: 10px; }
+    #results { margin-top: 30px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
+    th { background: #eee; }
+    #downloadBtn { display: none; margin-top: 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+    #searchInput { width: 100%; padding: 10px; margin-bottom: 10px; display: none; }
+  </style>
+</head>
+<body>
+  <h1>JoSAA 2024 College Predictor</h1>
+  <form id="predictor-form">
+    <input type="text" id="username" placeholder="Enter your Name" required />
+    <input type="number" id="rank" placeholder="Enter your JEE Rank" required />
+    <select id="category">
+      <option value="">Select Category</option>
+      <option value="GEN">GEN</option>
+      <option value="OBC">OBC</option>
+      <option value="SC">SC</option>
+      <option value="ST">ST</option>
+    </select>
+    <select id="gender">
+      <option value="">Select Gender</option>
+      <option value="Gender-Neutral">Gender-Neutral</option>
+      <option value="Female-Only (including Supernumerary)">Female Only</option>
+    </select>
+    <input type="text" id="homeState" placeholder="Enter your Home State (e.g. Maharashtra)" required />
+    <select id="round">
+      <option value="">Select Round</option>
+      <option value="1">Round 1</option>
+      <option value="2">Round 2</option>
+      <option value="3">Round 3</option>
+      <option value="4">Round 4</option>
+      <option value="5">Round 5</option>
+    </select>
+    <button type="submit">Predict Colleges</button>
+  </form>
+
+  <div id="results"></div>
+  <input type="text" id="searchInput" placeholder="Search in results..." />
+  <button id="downloadBtn">Download Results as PDF</button>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script>
+    let jsonData = {};
+    let userName = '', userRank = '', userCategory = '', userHomeState = '', userRound = '';
+
+    async function fetchJsonData(round) {
+      const fileName = `JoSAA_Round${round}_Data.json`;
+      const res = await fetch(fileName);
+      return await res.json();
+    }
+
+    document.getElementById('predictor-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const name = document.getElementById('username').value.trim();
+      const rank = parseInt(document.getElementById('rank').value);
+      const category = document.getElementById('category').value;
+      const gender = document.getElementById('gender').value;
+      const homeState = document.getElementById('homeState').value.trim().toLowerCase();
+      const round = document.getElementById('round').value;
+
+      if (!round) {
+        alert('Please select a round');
+        return;
+      }
+
+      userName = name;
+      userRank = rank;
+      userCategory = category;
+      userHomeState = document.getElementById('homeState').value.trim();
+      userRound = round;
+
+      jsonData = await fetchJsonData(round);
+
+      const filtered = jsonData.filter(row => {
+        const closingRank = parseInt(row['Closing Rank']);
+        const quota = row['Quota'];
+        const seatType = row['Seat Type'];
+        const genderCat = row['Gender'];
+        const instState = row['Institute State'] ? row['Institute State'].toLowerCase() : '';
+
+        const validRank = !isNaN(closingRank) && rank <= closingRank;
+        const validCategory = seatType === category;
+        const validGender = genderCat === gender;
+
+        const isHomeState = homeState === instState && quota === 'HS';
+        const isOtherState = homeState !== instState && quota === 'OS';
+        const isAllIndia = quota === 'AI';
+
+        return validRank && validCategory && validGender && (isHomeState || isOtherState || isAllIndia);
+      });
+
+      const resultDiv = document.getElementById('results');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const searchInput = document.getElementById('searchInput');
+
+      if (filtered.length === 0) {
+        resultDiv.innerHTML = '<p>No colleges found for the given input.</p>';
+        downloadBtn.style.display = 'none';
+        searchInput.style.display = 'none';
+        return;
+      }
+
+      let html = `<h2>Predicted Colleges for ${name}</h2>
+        <p><strong>Rank:</strong> ${userRank} | <strong>Category:</strong> ${userCategory} | <strong>Home State:</strong> ${userHomeState} | <strong>Round:</strong> ${round}</p>
+        <table id="resultTable"><thead><tr>
+        <th>Institute Name</th>
+        <th>Academic Program Name</th>
+        <th>Total B.Tech Fees (4 Years)</th>
+        <th>Avg. Yearly Fees</th>
+        <th>Average Package</th>
+        <th>Highest Package</th>
+        <th>Institute State</th>
+        <th>Quota</th>
+        <th>Seat Type</th>
+        <th>Gender</th>
+        <th>Closing Rank</th>
+        </tr></thead><tbody>`;
+
+      filtered.forEach(row => {
+        html += `<tr>
+          <td>${row['Institute Name']}</td>
+          <td>${row['Academic Program Name']}</td>
+          <td>${row['Total B.Tech Fees (4 Years)'] || '-'}</td>
+          <td>${row['Avg. Yearly Fees'] || '-'}</td>
+          <td>${row['Average Package'] || '-'}</td>
+          <td>${row['Highest Package'] || '-'}</td>
+          <td>${row['Institute State'] || '-'}</td>
+          <td>${row['Quota'] || '-'}</td>
+          <td>${row['Seat Type'] || '-'}</td>
+          <td>${row['Gender'] || '-'}</td>
+          <td>${row['Closing Rank'] || '-'}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      resultDiv.innerHTML = html;
+      downloadBtn.style.display = 'block';
+      searchInput.style.display = 'block';
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text(`JoSAA Predicted Colleges for ${userName}`, 10, 10);
+      doc.text(`Rank: ${userRank}  Category: ${userCategory}  Home State: ${userHomeState}  Round: ${userRound}`, 10, 17);
+
+      let rows = [];
+      document.querySelectorAll('#resultTable tr').forEach((row, i) => {
+        const cols = Array.from(row.querySelectorAll('td, th')).map(cell => cell.innerText);
+        if (cols.length) rows.push(cols);
+      });
+
+      doc.autoTable({
+        head: [rows[0]],
+        body: rows.slice(1),
+        startY: 25,
+        styles: { fontSize: 7, cellWidth: 'wrap' },
+        margin: { top: 10, right: 10, bottom: 10, left: 10 },
+        tableWidth: 'auto'
+      });
+
+      doc.save(`Predicted_Colleges_${userName.replace(/\s+/g, '_')}.pdf`);
+    });
+
+    document.getElementById('searchInput').addEventListener('input', function() {
+      const filter = this.value.toLowerCase();
+      const rows = document.querySelectorAll('#resultTable tbody tr');
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(filter) ? '' : 'none';
+      });
+    });
+  </script>
+</body>
+</html>
